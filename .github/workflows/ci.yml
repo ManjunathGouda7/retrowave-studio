@@ -1,0 +1,36 @@
+name: Retrowave Studio CI
+
+on:
+  push:
+    branches: [ main, Sub ]
+  pull_request:
+    branches: [ main, Sub ]
+
+jobs:
+  test:
+    name: Test 110 Filters & API
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install system dependencies (FFmpeg & OpenCV libs)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libgl1 libglib2.0-0
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Pytest Test Suite
+        run: |
+          pytest tests/ -v
