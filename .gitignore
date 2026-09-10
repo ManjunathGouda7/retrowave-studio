@@ -42,6 +42,7 @@ output/*
 !output/.gitkeep
 input/*
 !input/.gitkeep
+scratch/
 *.gif
 *.jpg
 *.jpeg
