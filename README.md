@@ -1,6 +1,6 @@
 # 📼 Retrowave Studio — Retro Image & Video Generator
 
-Transform your photos and video clips into stunning **retro masterpieces** with **110 authentic filters across 8 categories**, realistic analog film science, iconic overlays, and a full **Dynamic Video Processing Studio**!
+Transform your photos and video clips into stunning **retro masterpieces** with **110 authentic filters across 8 categories**, realistic analog film science, iconic overlays, an **Enterprise FastAPI Microservice**, and a full **Dynamic Video Processing Studio**!
 
 ---
 
@@ -17,46 +17,62 @@ Transform your photos and video clips into stunning **retro masterpieces** with 
 
 ---
 
-## 🎬 Video Processing Studio
+## 🚀 Interfaces & Architecture
 
-Process video clips (`.mp4`, `.mov`, `.avi`, `.mkv`, `.webm`, `.gif`) up to 3 minutes with automatic 720p scaling, selectable FPS (8, 12, 15, 24), and **8 dynamic time-based effects**:
+Retrowave Studio offers three distinct interfaces tailored for developers, creators, and enterprise systems:
 
-| Effect | Description |
-| :--- | :--- |
-| **💓 Pulse** | Brightness oscillates rhythmically over time |
-| **⚡ Strobe** | High-energy periodic strobe flashing |
-| **🌈 Chromatic Cycle** | Continuous rainbow hue rotation in HSV color space |
-| **📼 VHS Wobble** | Rolling horizontal tracking glitch and scanline jitter |
-| **🔴 Blinking Timestamp** | Vintage camcorder `REC ●` blinking dot with live running timecode |
-| **💥 Zoom Punch** | Periodic rhythmic beat zoom-in punch and snap back |
-| **⚡ Glitch Interval** | Periodic bursts of RGB channel separation every $N$ frames |
-| **🔥 Film Burn** | Occasional warm light leak flares and fades |
+1. ⚡ **Enterprise REST API (FastAPI)**: High-throughput microservice with interactive Swagger documentation (`/docs`) for programmatic media processing.
+2. 🖥️ **Interactive Web UI (Streamlit)**: Complete visual workstation with real-time before/after comparison, finishing touches, and animated GIF generator.
+3. 💻 **Command Line (CLI)**: Powerful scriptable tool for batch photo conversion and video rendering.
 
 ---
 
-## 🚀 Installation
+## 🛠️ Installation & Quickstart
 
 ```bash
+# Clone the repository
 git clone https://github.com/ManjunathGouda7/retrowave-studio.git
 cd retrowave-studio
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
 ---
 
-## 🖥️ Usage
+## ⚡ Enterprise REST API (FastAPI)
 
-### Interactive Web UI (Streamlit)
+Launch the high-performance API server:
+
+```bash
+uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+* Open **Interactive Swagger Docs**: 👉 **`http://localhost:8000/docs`**
+* Open **ReDoc Documentation**: 👉 **`http://localhost:8000/redoc`**
+
+### API Endpoints:
+- `GET /health` — Service health check and loaded categories.
+- `GET /api/v1/filters` — List all 110 filters (supports `?category=cyberpunk` filter).
+- `GET /api/v1/categories` — List all 8 categories with filter counts.
+- `POST /api/v1/process/image` — Transform image with retro filters, date stamps, Polaroid/35mm frames.
+- `POST /api/v1/process/image/gif` — Generate multi-frame looping animated GIF.
+- `POST /api/v1/process/video` — Process video clips with time-based dynamic effects.
+
+---
+
+## 🖥️ Interactive Web UI (Streamlit)
+
 ```bash
 streamlit run app.py
 ```
-*Includes two dedicated studios:*
+*Includes two dedicated creative studios:*
 - **📷 Retro Image Studio**: Before/after split comparison, finishing touches (7-segment date stamps, Polaroid/35mm borders, light leaks, halation), batch category ZIP downloads, and looping animated GIFs.
 - **🎬 Dynamic Video Studio**: Multi-format video uploads, 3-second quick previews, time-based effects switches, live progress tracking, and dual MP4/GIF downloads.
 
 ---
 
-### Command Line Interface (CLI)
+## 💻 Command Line Interface (CLI)
 
 #### 📷 Image Processing
 ```bash
@@ -88,6 +104,30 @@ python main.py video.mp4 --filter horror_found_footage --preview --time-effects 
 
 # Export both MP4 and animated GIF with rhythmic pulse and zoom punch
 python main.py video.mp4 --filter dreamy_bubblegum --fps 12 --time-effects pulse,zoom_punch --video-format both
+```
+
+---
+
+## 🐳 Docker Deployment
+
+Run the entire suite containerized with Docker and Docker Compose:
+
+```bash
+# Build and run both API and Web UI
+docker-compose up --build
+
+# API will be available at: http://localhost:8000/docs
+# Web UI will be available at: http://localhost:8501
+```
+
+---
+
+## 🧪 Testing
+
+Run the automated test suite with pytest:
+
+```bash
+python -m pytest tests/ -v
 ```
 
 ---

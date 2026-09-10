@@ -160,6 +160,42 @@ class VideoProcessor:
         }
 
     @staticmethod
+    def remux_audio(input_path: str, video_path: str):
+        """Extract audio from source input and remux into output video using ffmpeg if available."""
+        import subprocess
+        import shutil
+        ffmpeg_exe = shutil.which("ffmpeg")
+        if not ffmpeg_exe or not os.path.exists(video_path):
+            return
+
+        temp_audio = video_path + ".temp_audio.m4a"
+        temp_muxed = video_path + ".temp_muxed.mp4"
+        try:
+            cmd_extract = [
+                ffmpeg_exe, "-y", "-i", input_path, "-vn", "-c:a", "copy", temp_audio
+            ]
+            res_ext = subprocess.run(cmd_extract, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if res_ext.returncode != 0 or not os.path.exists(temp_audio) or os.path.getsize(temp_audio) == 0:
+                return
+
+            cmd_mux = [
+                ffmpeg_exe, "-y", "-i", video_path, "-i", temp_audio,
+                "-c:v", "copy", "-c:a", "aac", "-shortest", temp_muxed
+            ]
+            res_mux = subprocess.run(cmd_mux, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if res_mux.returncode == 0 and os.path.exists(temp_muxed) and os.path.getsize(temp_muxed) > 0:
+                os.replace(temp_muxed, video_path)
+        except Exception:
+            pass
+        finally:
+            for p in (temp_audio, temp_muxed):
+                if os.path.exists(p):
+                    try:
+                        os.remove(p)
+                    except Exception:
+                        pass
+
+    @staticmethod
     def process_video(
         input_path: str,
         filter_obj,
@@ -264,6 +300,10 @@ class VideoProcessor:
             cap.release()
             if writer:
                 writer.release()
+
+        # Attempt to preserve and remux original audio if ffmpeg is available
+        if output_mp4 and os.path.exists(output_mp4):
+            VideoProcessor.remux_audio(input_path, output_mp4)
 
         # Generate animated GIF if requested
         if output_gif and processed_frames_pil:
