@@ -32,7 +32,26 @@ st.set_page_config(
 # Custom Retro Synthwave CSS
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Inter:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Syne:wght@700;800&family=Inter:wght@400;600;700&family=VT323&display=swap');
+    
+    /* Global App Background */
+    .stApp {
+        background-color: #07090e;
+        background-image: 
+            radial-gradient(circle at 15% 15%, rgba(255, 0, 127, 0.08) 0%, transparent 40%),
+            radial-gradient(circle at 85% 20%, rgba(0, 240, 255, 0.07) 0%, transparent 40%),
+            linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+        background-size: 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+        color: #f3f4f6;
+    }
+    
+    /* Sidebar Styling */
+    section[data-testid="stSidebar"] {
+        background-color: rgba(14, 18, 29, 0.9) !important;
+        backdrop-filter: blur(16px);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+    }
     
     .retro-title {
         font-family: 'Orbitron', sans-serif;
@@ -49,22 +68,42 @@ st.markdown("""
     .retro-sub {
         font-family: 'Inter', sans-serif;
         text-align: center;
-        color: #a0aec0;
-        font-size: 1.1rem;
+        color: #94a3b8;
+        font-size: 1.05rem;
         margin-bottom: 1.5rem;
+        letter-spacing: 0.5px;
     }
-    .stDownloadButton button {
+    
+    /* Neon Styled Buttons */
+    .stButton button, .stDownloadButton button {
         background: linear-gradient(135deg, #ff007f 0%, #7928ca 100%) !important;
         color: white !important;
         border: none !important;
-        padding: 0.6rem 1.4rem !important;
-        font-weight: bold !important;
+        padding: 0.65rem 1.4rem !important;
+        font-weight: 700 !important;
+        font-family: 'Inter', sans-serif !important;
         border-radius: 8px !important;
+        box-shadow: 0 4px 15px rgba(255, 0, 127, 0.35) !important;
         transition: all 0.3s ease !important;
     }
-    .stDownloadButton button:hover {
+    .stButton button:hover, .stDownloadButton button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(255, 0, 127, 0.4) !important;
+        box-shadow: 0 6px 25px rgba(255, 0, 127, 0.55) !important;
+    }
+
+    /* Modern Radio Group */
+    div[data-testid="stRadio"] > div {
+        background: rgba(14, 18, 29, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 6px;
+        border-radius: 12px;
+    }
+
+    /* Glass Cards */
+    div[data-testid="stExpander"] {
+        background: rgba(17, 22, 37, 0.72) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 10px !important;
     }
 </style>
 """, unsafe_allow_html=True)

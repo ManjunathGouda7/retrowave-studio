@@ -52,6 +52,17 @@ scratch/
 .env
 *.local
 
+# Node / Frontend
+node_modules/
+.npm/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Allow sample assets
+!web/public/samples/*
+!assets/*
+
 # IDEs, editors & OS files
 .vscode/
 .idea/

@@ -19,11 +19,12 @@ Transform your photos and video clips into stunning **retro masterpieces** with 
 
 ## 🚀 Interfaces & Architecture
 
-Retrowave Studio offers three distinct interfaces tailored for developers, creators, and enterprise systems:
+Retrowave Studio offers four distinct interfaces tailored for developers, creators, and enterprise systems:
 
-1. ⚡ **Enterprise REST API (FastAPI)**: High-throughput microservice with interactive Swagger documentation (`/docs`) for programmatic media processing.
-2. 🖥️ **Interactive Web UI (Streamlit)**: Complete visual workstation with real-time before/after comparison, finishing touches, and animated GIF generator.
-3. 💻 **Command Line (CLI)**: Powerful scriptable tool for batch photo conversion and video rendering.
+1. 🌟 **Modern Web Studio (React + Vite)**: Ultra-premium dark cyber synthwave dashboard with an interactive **draggable split-screen slider**, 110-filter explorer, live **WebSocket render HUD**, and real-time job queue monitor.
+2. ⚡ **Enterprise REST API (FastAPI)**: High-throughput microservice with interactive Swagger documentation (`/docs`) and real-time WebSocket streaming (`/ws/jobs/{id}`).
+3. 🖥️ **Interactive Web UI (Streamlit)**: Streamlit workstation with refreshed dark glassmorphism styling and quick batch downloads.
+4. 💻 **Command Line (CLI)**: Scriptable tool for batch photo conversion and automated video rendering.
 
 ---
 
@@ -34,22 +35,33 @@ Retrowave Studio offers three distinct interfaces tailored for developers, creat
 git clone https://github.com/ManjunathGouda7/retrowave-studio.git
 cd retrowave-studio
 
-# Install dependencies
+# Install Python backend dependencies
 pip install -r requirements.txt
+
+# Install frontend dependencies (for dev mode)
+cd web && npm install && cd ..
 ```
 
 ---
 
-## ⚡ Enterprise REST API (FastAPI)
+## 🌟 Modern Web Studio (React + Vite) & FastAPI Microservice
 
-Launch the high-performance API server:
+Launch the unified FastAPI server (serves both the Web Studio and REST microservice):
 
 ```bash
 uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-* Open **Interactive Swagger Docs**: 👉 **`http://localhost:8000/docs`**
-* Open **ReDoc Documentation**: 👉 **`http://localhost:8000/redoc`**
+* 👉 **Modern Web Studio**: Open **`http://localhost:8000`** in your browser!
+* 👉 **Interactive Swagger Docs**: Open **`http://localhost:8000/docs`**
+* 👉 **ReDoc Documentation**: Open **`http://localhost:8000/redoc`**
+
+> **Frontend Development Mode**: To run the Vite dev server with instant hot module reloading:
+> ```bash
+> cd web
+> npm run dev
+> # Studio opens at http://localhost:3000 (auto-proxies API and WebSockets to :8000)
+> ```
 
 ### Synchronous REST Endpoints:
 - `GET /health` — Service health check and loaded categories.

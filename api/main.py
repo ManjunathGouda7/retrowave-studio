@@ -2,9 +2,11 @@
 Retrowave Studio Enterprise REST API.
 Production-grade microservice for retro image transformations and dynamic video processing.
 """
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 import filters
 from filters.base import FILTER_REGISTRY
@@ -53,12 +55,6 @@ app.include_router(jobs_router.router)
 app.include_router(websocket_router.router)
 
 
-@app.get("/", include_in_schema=False)
-def root():
-    """Redirect root to interactive OpenAPI docs."""
-    return RedirectResponse(url="/docs")
-
-
 @app.get("/health", response_model=HealthResponse, tags=["Health Check"])
 def health_check():
     """Service health check endpoint."""
@@ -70,6 +66,17 @@ def health_check():
         total_filters=len(FILTER_REGISTRY),
         categories=categories,
     )
+
+
+# Mount Web Studio static files if built, otherwise redirect root to /docs
+WEB_DIST_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "dist")
+if os.path.exists(WEB_DIST_DIR):
+    app.mount("/", StaticFiles(directory=WEB_DIST_DIR, html=True), name="static_web")
+else:
+    @app.get("/", include_in_schema=False)
+    def root():
+        """Redirect root to interactive OpenAPI docs."""
+        return RedirectResponse(url="/docs")
 
 
 if __name__ == "__main__":
