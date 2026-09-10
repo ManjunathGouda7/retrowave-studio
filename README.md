@@ -51,13 +51,31 @@ uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 * Open **Interactive Swagger Docs**: 👉 **`http://localhost:8000/docs`**
 * Open **ReDoc Documentation**: 👉 **`http://localhost:8000/redoc`**
 
-### API Endpoints:
+### Synchronous REST Endpoints:
 - `GET /health` — Service health check and loaded categories.
 - `GET /api/v1/filters` — List all 110 filters (supports `?category=cyberpunk` filter).
 - `GET /api/v1/categories` — List all 8 categories with filter counts.
 - `POST /api/v1/process/image` — Transform image with retro filters, date stamps, Polaroid/35mm frames.
 - `POST /api/v1/process/image/gif` — Generate multi-frame looping animated GIF.
-- `POST /api/v1/process/video` — Process video clips with time-based dynamic effects.
+- `POST /api/v1/process/video` — Synchronous video processing with time-based effects.
+
+### ⚡ Phase 2: Distributed Job Queue & WebSockets:
+- `POST /api/v1/jobs/video` — Submit asynchronous video render job (`202 Accepted`).
+- `POST /api/v1/jobs/image` — Submit asynchronous image transformation job (`202 Accepted`).
+- `GET /api/v1/jobs/{id}` — Poll job status, progress percentage (0-100%), and current step.
+- `GET /api/v1/jobs` — List recent queued, processing, and completed jobs.
+- `DELETE /api/v1/jobs/{id}` — Cancel a queued or active rendering task.
+- `GET /api/v1/jobs/{id}/download` — Download rendered MP4/GIF/JPEG artifact.
+- `WS /ws/jobs/{id}` — **Real-time WebSocket event stream** broadcasting live render progress directly to frontend clients.
+
+```javascript
+// Example: Connect to real-time WebSocket progress stream
+const ws = new WebSocket("ws://localhost:8000/ws/jobs/" + jobId);
+ws.onmessage = (event) => {
+  const job = JSON.parse(event.data);
+  console.log(`Progress: ${job.progress}% - ${job.current_step}`);
+};
+```
 
 ---
 
@@ -109,15 +127,16 @@ python main.py video.mp4 --filter dreamy_bubblegum --fps 12 --time-effects pulse
 ---
 
 ## 🐳 Docker Deployment
-
-Run the entire suite containerized with Docker and Docker Compose:
-
+ 
+Run the entire enterprise suite (API, Web UI, and Redis) containerized:
+ 
 ```bash
-# Build and run both API and Web UI
+# Build and run API, Web UI, and Redis services
 docker-compose up --build
-
-# API will be available at: http://localhost:8000/docs
-# Web UI will be available at: http://localhost:8501
+ 
+# API & Swagger UI: http://localhost:8000/docs
+# Streamlit Web UI: http://localhost:8501
+# Redis Message Broker: localhost:6379
 ```
 
 ---
