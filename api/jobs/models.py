@@ -16,6 +16,7 @@ class JobType(str, Enum):
     VIDEO = "video"
     IMAGE = "image"
     GIF = "gif"
+    BATCH = "batch"
 
 
 class JobResponse(BaseModel):

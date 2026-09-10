@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Sparkles, Sliders, Calendar, Image as ImageIcon, Download, 
-  Upload, Search, Film, Wand2, RefreshCw, Layers
+  Upload, Search, Film, Wand2, RefreshCw, Layers, Archive
 } from 'lucide-react';
 import SplitSlider from './SplitSlider';
+import JobProgressModal from './JobProgressModal';
 
 const CATEGORIES = [
   { id: 'all', label: 'All', count: 110 },
@@ -45,6 +46,46 @@ export default function ImageStudio() {
   const [viewMode, setViewMode] = useState('split');
 
   const fileInputRef = useRef(null);
+  const batchInputRef = useRef(null);
+  const [activeBatchJobId, setActiveBatchJobId] = useState(null);
+
+  const handleBatchUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file, file.name);
+      formData.append('filter_name', selectedFilter);
+      formData.append('intensity', intensity.toString());
+      if (dateStampEnabled && dateStampText) {
+        formData.append('date_stamp', dateStampText);
+      }
+      if (frameBorder === 'polaroid') {
+        formData.append('polaroid', 'true');
+      } else if (frameBorder === 'filmstrip') {
+        formData.append('film_border', 'true');
+      }
+      if (vhsOsd) formData.append('vhs_osd', 'true');
+      if (lightLeak) formData.append('light_leak', 'true');
+      if (grainAmount > 0) formData.append('grain', grainAmount.toString());
+
+      const res = await fetch('/api/v1/jobs/batch', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setActiveBatchJobId(data.job_id);
+      } else {
+        alert('Failed to submit batch ZIP job.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error connecting to backend batch queue.');
+    }
+  };
 
   // Fetch filter catalog
   useEffect(() => {
@@ -265,7 +306,24 @@ export default function ImageStudio() {
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload size={14} />
-              <span>Upload Custom Photo</span>
+              <span>Upload Photo</span>
+            </button>
+
+            <input
+              type="file"
+              ref={batchInputRef}
+              onChange={handleBatchUpload}
+              accept=".zip"
+              style={{ display: 'none' }}
+            />
+            <button
+              className="btn-secondary"
+              style={{ width: 'auto', padding: '0.4rem 0.85rem' }}
+              onClick={() => batchInputRef.current?.click()}
+              title="Upload a ZIP file of images to process in bulk"
+            >
+              <Archive size={14} />
+              <span>Batch ZIP Process</span>
             </button>
           </div>
         </div>
@@ -442,6 +500,13 @@ export default function ImageStudio() {
           </div>
         </div>
       </div>
+
+      {activeBatchJobId && (
+        <JobProgressModal
+          jobId={activeBatchJobId}
+          onClose={() => setActiveBatchJobId(null)}
+        />
+      )}
     </div>
   );
 }

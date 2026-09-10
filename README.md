@@ -71,14 +71,21 @@ uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 - `POST /api/v1/process/image/gif` — Generate multi-frame looping animated GIF.
 - `POST /api/v1/process/video` — Synchronous video processing with time-based effects.
 
-### ⚡ Phase 2: Distributed Job Queue & WebSockets:
+### ⚡ Phase 2 & Phase 4: Distributed Job Queue & WebSockets:
 - `POST /api/v1/jobs/video` — Submit asynchronous video render job (`202 Accepted`).
 - `POST /api/v1/jobs/image` — Submit asynchronous image transformation job (`202 Accepted`).
+- `POST /api/v1/jobs/batch` — Submit bulk ZIP archive for asynchronous image processing (`202 Accepted`).
 - `GET /api/v1/jobs/{id}` — Poll job status, progress percentage (0-100%), and current step.
 - `GET /api/v1/jobs` — List recent queued, processing, and completed jobs.
 - `DELETE /api/v1/jobs/{id}` — Cancel a queued or active rendering task.
-- `GET /api/v1/jobs/{id}/download` — Download rendered MP4/GIF/JPEG artifact.
+- `GET /api/v1/jobs/{id}/download` — Download rendered MP4/GIF/JPEG/ZIP artifact.
 - `WS /ws/jobs/{id}` — **Real-time WebSocket event stream** broadcasting live render progress directly to frontend clients.
+
+### 🎨 Phase 4: 3D LUT Engine (.cube) & Enterprise Security:
+- `GET /api/v1/lut/filter/{name}` — Export industry-standard 3D `.cube` LUT (33x33x33) for **DaVinci Resolve**, **Adobe Premiere Pro**, and **Final Cut Pro**.
+- `POST /api/v1/lut/custom` — Generate 3D `.cube` LUT from custom color temperature, tint, S-curves, and saturation.
+- `GET /api/v1/analytics` — Real-time telemetry, server uptime, job breakdown, and top popular filters ranking.
+- `X-API-Key` Authentication — Enterprise API key verification middleware with rate-limiting tier headers (`X-RateLimit-Tier: enterprise`).
 
 ```javascript
 // Example: Connect to real-time WebSocket progress stream

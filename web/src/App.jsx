@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import Navbar from './components/Navbar';
 import ImageStudio from './components/ImageStudio';
+import LutStudio from './components/LutStudio';
 import VideoStudio from './components/VideoStudio';
 import QueueMonitor from './components/QueueMonitor';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('image'); // 'image' | 'video' | 'queue'
+  const [activeTab, setActiveTab] = useState('image'); // 'image' | 'lut' | 'video' | 'queue'
 
   return (
     <div className="studio-app">
@@ -13,6 +14,7 @@ export default function App() {
 
       <main className="studio-content">
         {activeTab === 'image' && <ImageStudio />}
+        {activeTab === 'lut' && <LutStudio />}
         {activeTab === 'video' && <VideoStudio />}
         {activeTab === 'queue' && <QueueMonitor />}
       </main>

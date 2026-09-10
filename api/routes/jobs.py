@@ -93,6 +93,46 @@ async def queue_image_job(
     return job
 
 
+@router.post("/batch", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED, summary="Queue ZIP archive for batch image processing")
+async def queue_batch_job(
+    file: UploadFile = File(..., description="ZIP archive containing images (.jpg, .png, .webp)"),
+    filter_name: str = Form("cyber_neon"),
+    intensity: float = Form(1.0, ge=0.0, le=1.0),
+    date_stamp: Optional[str] = Form(None),
+    polaroid: bool = Form(False),
+    film_border: bool = Form(False),
+    vhs_osd: bool = Form(False),
+    light_leak: bool = Form(False),
+    grain: float = Form(0.0),
+):
+    """Submit a ZIP archive of images for asynchronous background batch processing."""
+    if filter_name not in FILTER_REGISTRY:
+        raise HTTPException(status_code=400, detail=f"Filter '{filter_name}' not found")
+
+    suffix = Path(file.filename or "batch.zip").suffix.lower() or ".zip"
+    temp_in = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    try:
+        content = await file.read()
+        temp_in.write(content)
+        temp_in.flush()
+    finally:
+        temp_in.close()
+
+    job_id = job_manager.submit_batch_job(
+        input_zip_path=temp_in.name,
+        filter_name=filter_name,
+        intensity=intensity,
+        date_stamp=date_stamp,
+        polaroid=polaroid,
+        film_border=film_border,
+        vhs_osd=vhs_osd,
+        light_leak=light_leak,
+        grain=grain,
+    )
+    job = job_manager.get_job(job_id)
+    return job
+
+
 @router.get("", response_model=JobListResponse, summary="List all recent jobs")
 def list_jobs(limit: int = 50):
     """List recent background rendering jobs and statuses."""
@@ -132,5 +172,12 @@ def download_job_output(job_id: str):
         raise HTTPException(status_code=404, detail="Output file not found on server")
 
     ext = Path(out_path).suffix.lower()
-    media_type = "video/mp4" if ext == ".mp4" else ("image/gif" if ext == ".gif" else "image/jpeg")
+    if ext == ".zip":
+        media_type = "application/zip"
+    elif ext == ".mp4":
+        media_type = "video/mp4"
+    elif ext == ".gif":
+        media_type = "image/gif"
+    else:
+        media_type = "image/jpeg"
     return FileResponse(out_path, media_type=media_type, filename=os.path.basename(out_path))

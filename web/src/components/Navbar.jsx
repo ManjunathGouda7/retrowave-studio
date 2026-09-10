@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Camera, Film, ListOrdered, BookOpen, Code2 } from 'lucide-react';
+import { Sparkles, Camera, Film, ListOrdered, BookOpen, Code2, Palette } from 'lucide-react';
 
 export default function Navbar({ activeTab, setActiveTab }) {
   const [serverOnline, setServerOnline] = useState(false);
@@ -50,6 +50,13 @@ export default function Navbar({ activeTab, setActiveTab }) {
         >
           <Camera size={16} />
           <span>Image Studio</span>
+        </button>
+        <button
+          className={`nav-tab-btn ${activeTab === 'lut' ? 'active' : ''}`}
+          onClick={() => setActiveTab('lut')}
+        >
+          <Palette size={16} />
+          <span>LUT & Recipe Studio</span>
         </button>
         <button
           className={`nav-tab-btn ${activeTab === 'video' ? 'active' : ''}`}
