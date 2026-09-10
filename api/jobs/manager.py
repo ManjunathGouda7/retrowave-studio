@@ -3,9 +3,13 @@ Thread-safe Asynchronous Job Manager with WebSocket Event Broadcasting.
 Handles concurrent background workers, progress tracking, and event streaming.
 """
 import asyncio
+import io
 import os
+import shutil
+import tempfile
 import threading
 import uuid
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
@@ -366,6 +370,153 @@ class JobManager:
                 job["completed_at"] = self._get_timestamp()
                 job["current_step"] = f"Failed: {str(e)}"
             self._broadcast(job_id, _dump_job(self._format_job_response(job)))
+
+    def submit_batch_job(
+        self,
+        input_zip_path: str,
+        filter_name: str,
+        intensity: float = 1.0,
+        date_stamp: str = None,
+        polaroid: bool = False,
+        film_border: bool = False,
+        vhs_osd: bool = False,
+        light_leak: bool = False,
+        grain: float = 0.0,
+    ) -> str:
+        """Submit asynchronous batch media processing job (ZIP archive)."""
+        job_id = str(uuid.uuid4())
+        output_file = os.path.join(self.output_dir, f"{job_id}_batch_{filter_name}.zip")
+
+        job = {
+            "id": job_id,
+            "type": JobType.BATCH,
+            "status": JobStatus.QUEUED,
+            "progress": 0,
+            "current_step": "Queued in worker pool",
+            "created_at": self._get_timestamp(),
+            "started_at": None,
+            "completed_at": None,
+            "input_file": input_zip_path,
+            "output_file": output_file,
+            "error": None,
+            "cancelled": False,
+            "metadata": {"filter_name": filter_name}
+        }
+
+        with self.lock:
+            self.jobs[job_id] = job
+
+        self.executor.submit(
+            self._execute_batch_task,
+            job_id,
+            input_zip_path,
+            output_file,
+            filter_name,
+            intensity,
+            date_stamp,
+            polaroid,
+            film_border,
+            vhs_osd,
+            light_leak,
+            grain
+        )
+        return job_id
+
+    def _execute_batch_task(
+        self,
+        job_id: str,
+        input_zip_path: str,
+        output_file: str,
+        filter_name: str,
+        intensity: float,
+        date_stamp: str,
+        polaroid: bool,
+        film_border: bool,
+        vhs_osd: bool,
+        light_leak: bool,
+        grain: float,
+    ):
+        """Worker thread for batch archive execution."""
+        with self.lock:
+            job = self.jobs[job_id]
+            if job.get("cancelled"):
+                return
+            job["status"] = JobStatus.PROCESSING
+            job["started_at"] = self._get_timestamp()
+            job["progress"] = 5
+            job["current_step"] = "Extracting batch archive"
+        self._broadcast(job_id, _dump_job(self._format_job_response(job)))
+
+        temp_dir = tempfile.mkdtemp(prefix=f"batch_{job_id}_")
+        try:
+            with zipfile.ZipFile(input_zip_path, 'r') as zf:
+                all_files = [f for f in zf.namelist() if not f.startswith('__MACOSX/') and not f.startswith('.')]
+                image_extensions = ('.jpg', '.jpeg', '.png', '.bmp', '.webp')
+                image_files = [f for f in all_files if f.lower().endswith(image_extensions)]
+
+                if not image_files:
+                    raise ValueError("No valid image files (.jpg, .png, .webp) found in ZIP archive.")
+
+                total_images = len(image_files)
+                processed_files = []
+
+                cls = FILTER_REGISTRY[filter_name]
+                filter_obj = cls(intensity=intensity)
+
+                for idx, fname in enumerate(image_files, 1):
+                    with self.lock:
+                        if job.get("cancelled"):
+                            return
+                        pct = int((idx / total_images) * 90)
+                        job["progress"] = max(5, pct)
+                        job["current_step"] = f"Processing image {idx}/{total_images}: {os.path.basename(fname)}"
+                    self._broadcast(job_id, _dump_job(self._format_job_response(job)))
+
+                    with zf.open(fname) as file_handle:
+                        img_bytes = file_handle.read()
+                        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+
+                    res = filter_obj.apply(img)
+                    if light_leak:
+                        res = add_light_leak(res, intensity=0.45)
+                    if grain > 0:
+                        res = add_grain(res, amount=grain)
+                    if date_stamp:
+                        res = draw_date_stamp(res, date_str=date_stamp)
+                    if vhs_osd:
+                        res = add_vhs_osd(res)
+                    if polaroid:
+                        res = add_polaroid_border(res)
+                    elif film_border:
+                        res = add_filmstrip_border(res)
+
+                    base_name = os.path.splitext(os.path.basename(fname))[0]
+                    out_img_name = f"{base_name}_{filter_name}.jpg"
+                    out_img_path = os.path.join(temp_dir, out_img_name)
+                    res.save(out_img_path, format="JPEG", quality=95)
+                    processed_files.append((out_img_path, out_img_name))
+
+            # Pack into output zip
+            with zipfile.ZipFile(output_file, 'w', compression=zipfile.ZIP_DEFLATED) as out_zip:
+                for full_path, arc_name in processed_files:
+                    out_zip.write(full_path, arc_name)
+
+            with self.lock:
+                job["status"] = JobStatus.COMPLETED
+                job["progress"] = 100
+                job["completed_at"] = self._get_timestamp()
+                job["current_step"] = f"Batch complete ({total_images} images processed)"
+            self._broadcast(job_id, _dump_job(self._format_job_response(job)))
+
+        except Exception as e:
+            with self.lock:
+                job["status"] = JobStatus.FAILED
+                job["error"] = str(e)
+                job["completed_at"] = self._get_timestamp()
+                job["current_step"] = f"Failed: {str(e)}"
+            self._broadcast(job_id, _dump_job(self._format_job_response(job)))
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 # Global singleton instance

@@ -19,11 +19,12 @@ Transform your photos and video clips into stunning **retro masterpieces** with 
 
 ## 🚀 Interfaces & Architecture
 
-Retrowave Studio offers three distinct interfaces tailored for developers, creators, and enterprise systems:
+Retrowave Studio offers four distinct interfaces tailored for developers, creators, and enterprise systems:
 
-1. ⚡ **Enterprise REST API (FastAPI)**: High-throughput microservice with interactive Swagger documentation (`/docs`) for programmatic media processing.
-2. 🖥️ **Interactive Web UI (Streamlit)**: Complete visual workstation with real-time before/after comparison, finishing touches, and animated GIF generator.
-3. 💻 **Command Line (CLI)**: Powerful scriptable tool for batch photo conversion and video rendering.
+1. 🌟 **Modern Web Studio (React + Vite)**: Ultra-premium dark cyber synthwave dashboard with an interactive **draggable split-screen slider**, 110-filter explorer, live **WebSocket render HUD**, and real-time job queue monitor.
+2. ⚡ **Enterprise REST API (FastAPI)**: High-throughput microservice with interactive Swagger documentation (`/docs`) and real-time WebSocket streaming (`/ws/jobs/{id}`).
+3. 🖥️ **Interactive Web UI (Streamlit)**: Streamlit workstation with refreshed dark glassmorphism styling and quick batch downloads.
+4. 💻 **Command Line (CLI)**: Scriptable tool for batch photo conversion and automated video rendering.
 
 ---
 
@@ -34,22 +35,33 @@ Retrowave Studio offers three distinct interfaces tailored for developers, creat
 git clone https://github.com/ManjunathGouda7/retrowave-studio.git
 cd retrowave-studio
 
-# Install dependencies
+# Install Python backend dependencies
 pip install -r requirements.txt
+
+# Install frontend dependencies (for dev mode)
+cd web && npm install && cd ..
 ```
 
 ---
 
-## ⚡ Enterprise REST API (FastAPI)
+## 🌟 Modern Web Studio (React + Vite) & FastAPI Microservice
 
-Launch the high-performance API server:
+Launch the unified FastAPI server (serves both the Web Studio and REST microservice):
 
 ```bash
 uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-* Open **Interactive Swagger Docs**: 👉 **`http://localhost:8000/docs`**
-* Open **ReDoc Documentation**: 👉 **`http://localhost:8000/redoc`**
+* 👉 **Modern Web Studio**: Open **`http://localhost:8000`** in your browser!
+* 👉 **Interactive Swagger Docs**: Open **`http://localhost:8000/docs`**
+* 👉 **ReDoc Documentation**: Open **`http://localhost:8000/redoc`**
+
+> **Frontend Development Mode**: To run the Vite dev server with instant hot module reloading:
+> ```bash
+> cd web
+> npm run dev
+> # Studio opens at http://localhost:3000 (auto-proxies API and WebSockets to :8000)
+> ```
 
 ### Synchronous REST Endpoints:
 - `GET /health` — Service health check and loaded categories.
@@ -59,14 +71,21 @@ uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 - `POST /api/v1/process/image/gif` — Generate multi-frame looping animated GIF.
 - `POST /api/v1/process/video` — Synchronous video processing with time-based effects.
 
-### ⚡ Phase 2: Distributed Job Queue & WebSockets:
+### ⚡ Phase 2 & Phase 4: Distributed Job Queue & WebSockets:
 - `POST /api/v1/jobs/video` — Submit asynchronous video render job (`202 Accepted`).
 - `POST /api/v1/jobs/image` — Submit asynchronous image transformation job (`202 Accepted`).
+- `POST /api/v1/jobs/batch` — Submit bulk ZIP archive for asynchronous image processing (`202 Accepted`).
 - `GET /api/v1/jobs/{id}` — Poll job status, progress percentage (0-100%), and current step.
 - `GET /api/v1/jobs` — List recent queued, processing, and completed jobs.
 - `DELETE /api/v1/jobs/{id}` — Cancel a queued or active rendering task.
-- `GET /api/v1/jobs/{id}/download` — Download rendered MP4/GIF/JPEG artifact.
+- `GET /api/v1/jobs/{id}/download` — Download rendered MP4/GIF/JPEG/ZIP artifact.
 - `WS /ws/jobs/{id}` — **Real-time WebSocket event stream** broadcasting live render progress directly to frontend clients.
+
+### 🎨 Phase 4: 3D LUT Engine (.cube) & Enterprise Security:
+- `GET /api/v1/lut/filter/{name}` — Export industry-standard 3D `.cube` LUT (33x33x33) for **DaVinci Resolve**, **Adobe Premiere Pro**, and **Final Cut Pro**.
+- `POST /api/v1/lut/custom` — Generate 3D `.cube` LUT from custom color temperature, tint, S-curves, and saturation.
+- `GET /api/v1/analytics` — Real-time telemetry, server uptime, job breakdown, and top popular filters ranking.
+- `X-API-Key` Authentication — Enterprise API key verification middleware with rate-limiting tier headers (`X-RateLimit-Tier: enterprise`).
 
 ```javascript
 // Example: Connect to real-time WebSocket progress stream

@@ -2,9 +2,11 @@
 Retrowave Studio Enterprise REST API.
 Production-grade microservice for retro image transformations and dynamic video processing.
 """
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 import filters
 from filters.base import FILTER_REGISTRY
@@ -13,6 +15,9 @@ from api.routes import images as images_router
 from api.routes import videos as videos_router
 from api.routes import jobs as jobs_router
 from api.routes import websocket as websocket_router
+from api.routes import lut as lut_router
+from api.routes import analytics as analytics_router
+from api.middleware.auth import APIKeyMiddleware
 from api.schemas import HealthResponse
 
 app = FastAPI(
@@ -24,17 +29,19 @@ app = FastAPI(
     
     ### Key Features:
     * **110 Unique Filters** across 8 categories: Cyberpunk, Horror, Dreamy, 80s, 90s, Retro, Glitch, and Artistic.
-    * **Asynchronous Job Queue**: Asynchronous rendering with live progress polling (`/api/v1/jobs/{id}`).
+    * **3D LUT Engine (.cube)**: Industry-standard 3D LUT generation for DaVinci Resolve, Adobe Premiere Pro, and Final Cut Pro.
+    * **Batch Media Processing**: Process entire ZIP archives asynchronously through worker queue.
+    * **Asynchronous Job Queue**: Background rendering with live progress polling (`/api/v1/jobs/{id}`).
     * **Real-Time WebSockets**: Stream frame-by-frame progress percentages directly via `/ws/jobs/{id}`.
-    * **Photographic Film Science**: CineStill halation, exposure-weighted film grain, and S-curves.
-    * **Retro Overlays**: Glowing 7-segment camera date stamps, Polaroid frames, 35mm negative filmstrips, and VHS OSD.
-    * **Dynamic Video Engine**: Frame-by-frame rendering with 8 temporal effects (Pulse, Strobe, VHS Wobble, Timestamp, Glitch, etc.).
-    * **Dual Exports**: Direct MP4 video streaming and looping animated GIFs.
+    * **Enterprise Security & Telemetry**: Optional API key authentication and live telemetry metrics.
     """,
-    version="1.1.0",
+    version="1.2.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# API key authentication & rate limiting middleware
+app.add_middleware(APIKeyMiddleware)
 
 # CORS middleware for web, mobile, and third-party integrations
 app.add_middleware(
@@ -51,12 +58,8 @@ app.include_router(images_router.router)
 app.include_router(videos_router.router)
 app.include_router(jobs_router.router)
 app.include_router(websocket_router.router)
-
-
-@app.get("/", include_in_schema=False)
-def root():
-    """Redirect root to interactive OpenAPI docs."""
-    return RedirectResponse(url="/docs")
+app.include_router(lut_router.router)
+app.include_router(analytics_router.router)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health Check"])
@@ -70,6 +73,17 @@ def health_check():
         total_filters=len(FILTER_REGISTRY),
         categories=categories,
     )
+
+
+# Mount Web Studio static files if built, otherwise redirect root to /docs
+WEB_DIST_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "dist")
+if os.path.exists(WEB_DIST_DIR):
+    app.mount("/", StaticFiles(directory=WEB_DIST_DIR, html=True), name="static_web")
+else:
+    @app.get("/", include_in_schema=False)
+    def root():
+        """Redirect root to interactive OpenAPI docs."""
+        return RedirectResponse(url="/docs")
 
 
 if __name__ == "__main__":
