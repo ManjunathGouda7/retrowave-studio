@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Sparkles, Sliders, Calendar, Image as ImageIcon, Download, 
-  Upload, Search, Film, Wand2, RefreshCw, Layers, Archive
+  Upload, Search, Film, Wand2, RefreshCw, Layers, Archive, 
+  ChevronDown, ChevronUp, Keyboard, HelpCircle
 } from 'lucide-react';
 import SplitSlider from './SplitSlider';
 import JobProgressModal from './JobProgressModal';
+import BatchModal from './BatchModal';
+import ShortcutsModal from './ShortcutsModal';
 
 const CATEGORIES = [
   { id: 'all', label: 'All', count: 110 },
@@ -23,6 +26,36 @@ const PRESETS = [
   { name: '80s Sunset Car', path: '/samples/synthwave_car.jpg' },
 ];
 
+// Procedural gradient swatch generator for realistic retro thumbnail looks
+export const getFilterGradient = (category, name) => {
+  switch (category) {
+    case 'cyberpunk':
+      if (name.includes('blade')) return 'linear-gradient(135deg, #ff7b00 0%, #00f0ff 100%)';
+      if (name.includes('matrix') || name.includes('rain') || name.includes('acid')) 
+        return 'linear-gradient(135deg, #021a02 0%, #00ff66 100%)';
+      return 'linear-gradient(135deg, #ff007f 0%, #00f0ff 100%)';
+    case 'horror':
+      if (name.includes('vision')) return 'linear-gradient(135deg, #052b05 0%, #00ff44 100%)';
+      if (name.includes('blood') || name.includes('demon')) 
+        return 'linear-gradient(135deg, #400000 0%, #ff0033 100%)';
+      return 'linear-gradient(135deg, #2b0c15 0%, #8b0000 50%, #1a1a1a 100%)';
+    case 'dreamy':
+      return 'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 50%, #ffc3a0 100%)';
+    case '80s':
+      return 'linear-gradient(135deg, #ff007f 0%, #7928ca 50%, #00f0ff 100%)';
+    case '90s':
+      return 'linear-gradient(135deg, #f7971e 0%, #ffd200 60%, #00c9ff 100%)';
+    case 'retro':
+      return 'linear-gradient(135deg, #c31432 0%, #240b36 100%)';
+    case 'glitch':
+      return 'linear-gradient(135deg, #00f0ff 0%, #ff007f 50%, #00ff88 100%)';
+    case 'artistic':
+      return 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)';
+    default:
+      return 'linear-gradient(135deg, #ff007f 0%, #00f0ff 100%)';
+  }
+};
+
 export default function ImageStudio() {
   const [allFilters, setAllFilters] = useState([]);
   const [activeCategory, setActiveCategory] = useState('all');
@@ -38,6 +71,14 @@ export default function ImageStudio() {
   const [lightLeak, setLightLeak] = useState(false);
   const [grainAmount, setGrainAmount] = useState(0.08);
 
+  // Pro Color Grading Drawer (Lightroom Style)
+  const [showProGrading, setShowProGrading] = useState(false);
+  const [proExposure, setProExposure] = useState(0);
+  const [proContrast, setProContrast] = useState(1.0);
+  const [proTemp, setProTemp] = useState(0);
+  const [proTint, setProTint] = useState(0);
+  const [proVignette, setProVignette] = useState(0);
+
   // Images state
   const [originalSrc, setOriginalSrc] = useState('/samples/cyberpunk_city.jpg');
   const [filteredSrc, setFilteredSrc] = useState(null);
@@ -45,67 +86,62 @@ export default function ImageStudio() {
   const [isGeneratingGif, setIsGeneratingGif] = useState(false);
   const [viewMode, setViewMode] = useState('split');
 
-  const fileInputRef = useRef(null);
-  const batchInputRef = useRef(null);
+  // Modals state
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [activeBatchJobId, setActiveBatchJobId] = useState(null);
 
-  const handleBatchUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file, file.name);
-      formData.append('filter_name', selectedFilter);
-      formData.append('intensity', intensity.toString());
-      if (dateStampEnabled && dateStampText) {
-        formData.append('date_stamp', dateStampText);
-      }
-      if (frameBorder === 'polaroid') {
-        formData.append('polaroid', 'true');
-      } else if (frameBorder === 'filmstrip') {
-        formData.append('film_border', 'true');
-      }
-      if (vhsOsd) formData.append('vhs_osd', 'true');
-      if (lightLeak) formData.append('light_leak', 'true');
-      if (grainAmount > 0) formData.append('grain', grainAmount.toString());
-
-      const res = await fetch('/api/v1/jobs/batch', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setActiveBatchJobId(data.job_id);
-      } else {
-        alert('Failed to submit batch ZIP job.');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Error connecting to backend batch queue.');
-    }
-  };
+  const fileInputRef = useRef(null);
 
   // Fetch filter catalog
   useEffect(() => {
     fetch('/api/v1/filters')
       .then((res) => res.json())
       .then((data) => {
-        if (data.filters) {
-          setAllFilters(data.filters);
-        }
+        if (data.filters) setAllFilters(data.filters);
       })
       .catch((err) => console.error('Failed to load filters list', err));
   }, []);
 
-  // Process image using API
+  // Filter list search & category filter
+  const filteredList = allFilters.filter((f) => {
+    const matchCat = activeCategory === 'all' || f.category === activeCategory;
+    const matchSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        f.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
+  // Keyboard navigation listeners: [ for prev, ] for next, ? for shortcuts
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      if (e.key === '[') {
+        const idx = filteredList.findIndex((f) => f.name === selectedFilter);
+        if (idx > 0) setSelectedFilter(filteredList[idx - 1].name);
+      } else if (e.key === ']') {
+        const idx = filteredList.findIndex((f) => f.name === selectedFilter);
+        if (idx >= 0 && idx < filteredList.length - 1) {
+          setSelectedFilter(filteredList[idx + 1].name);
+        }
+      } else if (e.key === '?') {
+        setShowShortcuts((prev) => !prev);
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleDownload();
+      }
+    };
+
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [filteredList, selectedFilter]);
+
+  // Process image via API
   const applyFilter = useCallback(async () => {
     if (!originalSrc) return;
     setIsProcessing(true);
 
     try {
-      // Get image blob from originalSrc
       const imgRes = await fetch(originalSrc);
       const imgBlob = await imgRes.blob();
 
@@ -122,15 +158,10 @@ export default function ImageStudio() {
       } else if (frameBorder === 'filmstrip') {
         formData.append('film_border', 'true');
       }
-      if (vhsOsd) {
-        formData.append('vhs_osd', 'true');
-      }
-      if (lightLeak) {
-        formData.append('light_leak', 'true');
-      }
-      if (grainAmount > 0) {
-        formData.append('grain', grainAmount.toString());
-      }
+      if (vhsOsd) formData.append('vhs_osd', 'true');
+      if (lightLeak) formData.append('light_leak', 'true');
+      if (grainAmount > 0) formData.append('grain', grainAmount.toString());
+
       formData.append('response_format', 'binary');
 
       const res = await fetch('/api/v1/process/image', {
@@ -211,17 +242,9 @@ export default function ImageStudio() {
     a.click();
   };
 
-  // Filter list search & category filter
-  const filteredList = allFilters.filter((f) => {
-    const matchCat = activeCategory === 'all' || f.category === activeCategory;
-    const matchSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        f.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchCat && matchSearch;
-  });
-
   return (
     <div className="studio-grid">
-      {/* 1. LEFT PANEL: FILTER EXPLORER */}
+      {/* 1. LEFT PANEL: VISUAL FILTER SWATCH CARDS */}
       <div className="panel-card">
         <div className="panel-header">
           <h3 className="panel-title">
@@ -237,7 +260,7 @@ export default function ImageStudio() {
           <input
             type="text"
             className="search-input"
-            placeholder="Search 110 filters..."
+            placeholder="Search 110 filters... (Use [ / ] to cycle)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -257,30 +280,39 @@ export default function ImageStudio() {
           ))}
         </div>
 
-        {/* Scrollable Filters List */}
-        <div className="filters-scroll">
+        {/* Visual Swatch Cards Grid */}
+        <div className="filter-cards-grid">
           {filteredList.map((f) => (
             <div
               key={f.name}
-              className={`filter-item-card ${selectedFilter === f.name ? 'active' : ''}`}
+              className={`swatch-card ${selectedFilter === f.name ? 'active' : ''}`}
               onClick={() => setSelectedFilter(f.name)}
+              title={f.description}
             >
-              <div className="filter-info">
-                <h4>{f.name.replace(/_/g, ' ')}</h4>
-                <p>{f.description}</p>
+              <div
+                className="swatch-preview-tile"
+                style={{ background: getFilterGradient(f.category, f.name) }}
+              >
+                <Sparkles size={14} style={{ color: 'rgba(255,255,255,0.7)', filter: 'drop-shadow(0 0 3px rgba(0,0,0,0.6))' }} />
               </div>
-              <span className="filter-tag">{f.category}</span>
+              <div className="swatch-card-title">{f.name.replace(/_/g, ' ').toUpperCase()}</div>
+              <div className="swatch-card-meta">
+                <span>{f.category.toUpperCase()}</span>
+                {selectedFilter === f.name && (
+                  <span style={{ color: 'var(--neon-cyan)', fontWeight: 800 }}>ACTIVE</span>
+                )}
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* 2. CENTER PANEL: STAGE & SPLIT SLIDER */}
+      {/* 2. CENTER PANEL: STAGE & PRO CANVAS */}
       <div>
-        {/* Sample Presets & Quick Upload Row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+        {/* Sample Presets & Quick Actions Toolbar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
           <div className="sample-presets-bar">
-            <span>Sample Presets:</span>
+            <span>Presets:</span>
             {PRESETS.map((p) => (
               <button
                 key={p.name}
@@ -309,26 +341,28 @@ export default function ImageStudio() {
               <span>Upload Photo</span>
             </button>
 
-            <input
-              type="file"
-              ref={batchInputRef}
-              onChange={handleBatchUpload}
-              accept=".zip"
-              style={{ display: 'none' }}
-            />
             <button
               className="btn-secondary"
-              style={{ width: 'auto', padding: '0.4rem 0.85rem' }}
-              onClick={() => batchInputRef.current?.click()}
-              title="Upload a ZIP file of images to process in bulk"
+              style={{ width: 'auto', padding: '0.4rem 0.85rem', borderColor: 'rgba(255, 0, 127, 0.4)' }}
+              onClick={() => setShowBatchModal(true)}
+              title="Bulk-transform photos in parallel"
             >
-              <Archive size={14} />
-              <span>Batch ZIP Process</span>
+              <Archive size={14} style={{ color: 'var(--neon-pink)' }} />
+              <span>Batch Studio</span>
+            </button>
+
+            <button
+              className="ghost-btn"
+              onClick={() => setShowShortcuts(true)}
+              title="Keyboard Shortcuts (?)"
+              style={{ padding: '0.4rem 0.6rem' }}
+            >
+              <HelpCircle size={15} />
             </button>
           </div>
         </div>
 
-        {/* Interactive Draggable Split Canvas */}
+        {/* Interactive Draggable Split Canvas & Workstation */}
         <SplitSlider
           originalSrc={originalSrc}
           filteredSrc={filteredSrc}
@@ -339,7 +373,7 @@ export default function ImageStudio() {
         />
       </div>
 
-      {/* 3. RIGHT PANEL: FINISHING TOUCHES & EXPORTS */}
+      {/* 3. RIGHT PANEL: FINISHING TOUCHES & PRO GRADING */}
       <div className="controls-sidebar">
         <div className="panel-card">
           <div className="panel-header">
@@ -352,7 +386,7 @@ export default function ImageStudio() {
           {/* Intensity Slider */}
           <div className="control-group" style={{ marginBottom: '1.25rem' }}>
             <div className="control-label">
-              <span>Filter Intensity</span>
+              <span>Filter Strength</span>
               <span className="control-val">{Math.round(intensity * 100)}%</span>
             </div>
             <input
@@ -461,7 +495,7 @@ export default function ImageStudio() {
           </div>
 
           {/* VHS OSD Switch */}
-          <div className="control-group" style={{ marginBottom: '1.5rem' }}>
+          <div className="control-group" style={{ marginBottom: '1.25rem' }}>
             <div className="switch-row">
               <span className="switch-label">
                 <Film size={15} style={{ color: 'var(--neon-cyan)' }} />
@@ -478,7 +512,73 @@ export default function ImageStudio() {
             </div>
           </div>
 
-          {/* Download & GIF Buttons */}
+          {/* Collapsible Lightroom-Style Pro Grading Drawer */}
+          <div className="pro-grading-panel" style={{ marginBottom: '1.25rem' }}>
+            <div 
+              className="pro-grading-header"
+              onClick={() => setShowProGrading((prev) => !prev)}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                <Layers size={14} style={{ color: 'var(--neon-cyan)' }} />
+                <span>Pro Color Grading</span>
+              </div>
+              {showProGrading ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </div>
+
+            {showProGrading && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+                <div className="pro-slider-row">
+                  <div className="pro-slider-label">
+                    <span>Exposure</span>
+                    <span>{proExposure > 0 ? `+${proExposure}` : proExposure}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-0.5"
+                    max="0.5"
+                    step="0.05"
+                    value={proExposure}
+                    onChange={(e) => setProExposure(parseFloat(e.target.value))}
+                    className="cyber-slider"
+                  />
+                </div>
+
+                <div className="pro-slider-row">
+                  <div className="pro-slider-label">
+                    <span>Contrast Slope</span>
+                    <span>{proContrast}x</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="1.8"
+                    step="0.05"
+                    value={proContrast}
+                    onChange={(e) => setProContrast(parseFloat(e.target.value))}
+                    className="cyber-slider"
+                  />
+                </div>
+
+                <div className="pro-slider-row">
+                  <div className="pro-slider-label">
+                    <span>Temperature</span>
+                    <span>{proTemp > 0 ? `+${proTemp}` : proTemp}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-0.5"
+                    max="0.5"
+                    step="0.05"
+                    value={proTemp}
+                    onChange={(e) => setProTemp(parseFloat(e.target.value))}
+                    className="cyber-slider"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action & Download Buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <button
               className="btn-primary"
@@ -486,7 +586,7 @@ export default function ImageStudio() {
               disabled={!filteredSrc}
             >
               <Download size={18} />
-              <span>Download Master JPEG</span>
+              <span>Download Master JPEG (Ctrl+S)</span>
             </button>
 
             <button
@@ -501,6 +601,22 @@ export default function ImageStudio() {
         </div>
       </div>
 
+      {/* Batch Processing Studio Modal */}
+      {showBatchModal && (
+        <BatchModal
+          onClose={() => setShowBatchModal(false)}
+          allFilters={allFilters}
+          defaultFilter={selectedFilter}
+          onBatchStarted={(jobId) => setActiveBatchJobId(jobId)}
+        />
+      )}
+
+      {/* Shortcuts Cheatsheet Modal */}
+      {showShortcuts && (
+        <ShortcutsModal onClose={() => setShowShortcuts(false)} />
+      )}
+
+      {/* Live WebSocket Progress HUD for Batch Jobs */}
       {activeBatchJobId && (
         <JobProgressModal
           jobId={activeBatchJobId}
